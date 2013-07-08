@@ -1,47 +1,76 @@
 /*jshint node:true, laxcomma:true */
 
 var util = require('util');
-var lastFlush, lastException, config;
+var levelup = require('levelup');
+
+//==================
+// leveldb interface
+//==================
+
+var db = levelup('./statsd.db');
+var maximumSize = 1e10;
+var entriesSize = 0;
+
+function sizeCheck() {
+  db.db.approximateSize('a', 'z', function (err, size) {
+    if (err) return console.error('Ooops!', err);
+    entriesSize = size;
+    console.log('Approximate size of range is %d', size);
+  });
+}
+
+setInterval(sizeCheck, 20*1000);
+sizeCheck();
+
+var add = function(from, to, metrics) {
+  var key = 'data-'+from+':'+to,
+      data = JSON.stringify(metrics);
+  db.put(key, data, function(err) {
+    console.log(err || 'put: ' + key);
+  });
+};
+
+
+//==================
+//  statsd interface
+//==================
+
+var last, config;
 
 exports.init = function(startupTime, initConfig, emitter) {
 
-  lastFlush = startupTime;
-  lastException = startupTime;
+  last = now();
   config = initConfig.console || {};
 
-  emitter.on('flush', exports.flush);
-  emitter.on('status', exports.status);
+  emitter.on('flush', flush);
+  emitter.on('status', status);
 
   return true;
 };
 
-exports.flush = function(timestamp, metrics) {
-  console.log('Flushing stats at', new Date(timestamp * 1000).toString());
+function flush(timestamp, metrics) {
+  //replace timestamp
+  timestamp = now();
+  add(last, timestamp, metrics);
+  last = timestamp;
+}
 
-  var out = {
-    counters: metrics.counters,
-    timers: metrics.timers,
-    gauges: metrics.gauges,
-    timer_data: metrics.timer_data,
-    counter_rates: metrics.counter_rates,
-    sets: map(metrics.sets, function (key, val) {
-      return val.values();
-    }),
-    pctThreshold: metrics.pctThreshold
-  };
-
-  console.log(config.prettyprint ? util.inspect(out, false, 5, true) : out);
-};
-
-exports.status = function(write) {
+function status(write) {
   write(null, 'console', 'lastFlush', lastFlush);
   write(null, 'console', 'lastException', lastException);
-};
+}
 
-//map helper
+//==================
+//  helpers
+//==================
+
 function map(obj, fn) {
   var arr = [];
   for(var key in obj)
     arr.push(fn(key, obj[key]));
   return arr;
+}
+
+function now() {
+  return new Date().getTime();
 }
