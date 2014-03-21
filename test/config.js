@@ -1,5 +1,5 @@
 {
   "port": 8125,
-  "backends": [ "../../leveldb" ],
+  "backends": [ "../../leveldb-backend" ],
   "flushInterval": 1000
 }

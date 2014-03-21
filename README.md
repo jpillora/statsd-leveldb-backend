@@ -1,7 +1,7 @@
 statsd-leveldb-backend
 ======================
 
-A backend for StatsD to emit stats to leveldb. Implements the Robin robin **like** database, described in [this comment](https://github.com/rvagg/node-levelup/issues/154#issuecomment-20391086) on the levelup project.
+A backend for StatsD to emit stats to leveldb. Implements the Robin robin **like** database, described in [this comment](https://github.com/rvagg/node-levelup/issues/154) on the levelup project.
 
 ### Goal
 
@@ -11,9 +11,15 @@ A backend for StatsD to emit stats to leveldb. Implements the Robin robin **like
 
 **Still in prototyping phase...** :smile:
 
+### Development
+
+* `npm install`
+* `cd test/`
+* `node test.js`
+
 #### MIT License
 
-Copyright © 2013 Jaime Pillora &lt;dev@jpillora.com&gt;
+Copyright © 2014 Jaime Pillora &lt;dev@jpillora.com&gt;
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

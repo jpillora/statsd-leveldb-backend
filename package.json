@@ -1,7 +1,7 @@
 {
   "name": "statsd-leveldb-backend",
   "version": "0.1.0",
-  "main": "leveldb.js",
+  "main": "leveldb-backend.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/jpillora/statsd-leveldb-backend"
@@ -9,9 +9,10 @@
   "author": "Jaime Pillora <dev@jpillora.com>",
   "license": "MIT",
   "dependencies": {
-    "statsd": "~0.6.0",
-    "levelup": "~0.10.0",
-    "leveldown": "~0.6.2",
-    "level-sublevel": "~4.7.1"
+    "level-sublevel": "^5.2.0",
+    "level": "^0.18.0"
+  },
+  "devDependencies": {
+    "statsd": "^0.7.1"
   }
 }

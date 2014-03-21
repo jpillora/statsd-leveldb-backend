@@ -4,9 +4,7 @@ var sock = require('dgram').createSocket("udp4");
 
 function start() {
   console.log("running statsd");
-  var statsd = fork('../node_modules/statsd/stats.js', ['config.js'], {silent:true});
-  statsd.stdout.pipe(process.stdout);
-  statsd.stderr.pipe(process.stderr);
+  fork('../node_modules/statsd/stats.js', ['config.js'], {stdio:'inherit'});
 }
 
 function send(data) {
