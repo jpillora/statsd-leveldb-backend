@@ -15,13 +15,12 @@ function send(data) {
   });
 }
 
-
 var datas = [
-  "bucket:{{2:8}}|c",
-  "gaugor:{{1:5}}|g",
-  "gaugor:-{{1:10}}|g",
-  "gaugor:+{{1:10}}|g",
-  "uniques:{{-10:10}}|s"
+  "switch1.cpu:{{0:100}}|g",
+  "switch2.cpu:{{0:100}}|g",
+  "switch1.port12.rxBytes:{{100:500}}|g",
+  "switch1.port14.rxBytes:{{100:500}}|g",
+  "switch2.port42.rxBytes:{{100:500}}|g"
 ];
 
 function randomInt(max) {
@@ -35,9 +34,8 @@ function random() {
     to = parseInt(to, 10);
     return randomInt(to-from)+from;
   });
-  // console.log(data);
   send(data);
-  setTimeout(random, 10+randomInt(10));
+  setTimeout(random, 100+randomInt(10));
 }
 
 start();
