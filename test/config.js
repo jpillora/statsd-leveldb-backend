@@ -1,7 +1,7 @@
 {
   "port": 8125,
   "backends": [ "../../leveldb-backend" ],
-  "flushInterval": 100,
+  "flushInterval": 1000,
   "maxSize" : 1e10,
   "boundaries": [
     {

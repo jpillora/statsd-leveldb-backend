@@ -17,7 +17,14 @@ function sizeCheck() {
   db.createKeyStream({limit: lmt})
     .on('data', function(key) {
 
-      //Check here if the this record is already compressed
+      //Check here if this record is already compressed
+      var k = key.split('-')
+      var df = moment(k[2]).diff(moment(k[1], 'seconds'))
+      console.log("Diff: %d", df)
+
+      if (df == 1) {
+        console.log('Stat is uncompressed')
+      }
 
       //Create delete batch in case the it needs to be deleted
       domain.delBatch = []
@@ -47,7 +54,7 @@ function sizeCheck() {
           console.log("-------------------------------------------------")
           console.log("Size used by domain: [%s,%s]= %d", domain.start, domain.end, size)
           console.log("-------------------------------------------------")
-          if (size > 2000) {
+          if (size > 5000) {
             console.log("#######Compression required######")
             var newKey = 'stat-' + domain.start.split('-')[1] + '-' + domain.end.split('-')[2]
 
@@ -72,7 +79,7 @@ function sizeCheck() {
     })
 }
 
-setInterval(sizeCheck, 100);
+setInterval(sizeCheck, 10 * 1000);
 
 var add = function(from, to, metrics) {
   var key = 'stat-'+from+'-'+to,
@@ -81,8 +88,10 @@ var add = function(from, to, metrics) {
   db.put(key, data, function(err) {
     if(err)
       console.error(err);
-    else
-      console.log('%s = %s...', key, JSON.stringify(metrics.gauges).substr(0, 60));
+    else {
+      var diff = to.diff(from, 'seconds')
+      console.log('%s = %s [Diff: %d secs]...', key, JSON.stringify(metrics.gauges).substr(0, 60), diff);
+    }
   });
 };
 

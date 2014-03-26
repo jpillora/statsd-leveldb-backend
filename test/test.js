@@ -33,8 +33,8 @@ function random() {
     return randomInt(to-from)+from;
   });
   send(data);
-  setTimeout(random, 100+randomInt(10));
+  setTimeout(random, 1000);
 }
 
 start();
-setTimeout(random, 300);
+setTimeout(random, 1000);
