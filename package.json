@@ -10,7 +10,8 @@
   "license": "MIT",
   "dependencies": {
     "level-sublevel": "^5.2.0",
-    "level": "^0.18.0"
+    "level": "^0.18.0",
+    "moment": "^2.5.1"
   },
   "devDependencies": {
     "statsd": "^0.7.1"

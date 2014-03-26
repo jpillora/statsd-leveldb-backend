@@ -8,7 +8,9 @@ db.db.approximateSize('a', 'z', function (err, size) {
 
 db.createReadStream()
   .on('data', function (data) {
-    console.log(data.key, '=', data.value.substr(0,20) + "...");
+    // console.log(data.key, '=', data.value.substr(0,20) + "...");
+    var val = JSON.parse(data.value)
+    console.log(data.key, '=', val.guages);
   })
   .on('error', function (err) {
     console.log('Oh my!', err);

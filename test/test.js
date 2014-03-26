@@ -1,4 +1,3 @@
-
 var fork = require('child_process').fork;
 var sock = require('dgram').createSocket("udp4");
 
@@ -8,7 +7,6 @@ function start() {
 }
 
 function send(data) {
-  // console.log("sending: ", data);
   var buff = new Buffer(data);
   sock.send(buff,0,buff.length,8125,'localhost', function(err, bytes) {
     if (err) throw err;
@@ -39,5 +37,4 @@ function random() {
 }
 
 start();
-setTimeout(random, 500);
-
+setTimeout(random, 300);
