@@ -11,9 +11,17 @@
   "dependencies": {
     "level-sublevel": "^5.2.0",
     "level": "^0.18.0",
-    "moment": "^2.5.1"
+    "moment": "^2.5.1",
+    "lodash": "^2.4.1",
+    "leveldown": "^0.10.2"
   },
   "devDependencies": {
-    "statsd": "^0.7.1"
+    "statsd": "^0.7.1",
+    "should": "^3.2.0-beta1",
+    "mocha": "^1.18.2",
+    "coffee-script": "^1.7.1"
+  },
+  "scripts": {
+    "test": "mocha --reporter spec --compilers coffee:coffee-script/register test/"
   }
 }

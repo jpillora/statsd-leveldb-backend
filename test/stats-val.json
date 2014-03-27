@@ -1,0 +1,29 @@
+{
+  "counters": {
+    "statsd.bad_lines_seen": 0,
+    "statsd.packets_received": 1
+  },
+  "gauges": {
+    "switch1.cpu": 74,
+    "switch1.port": 74,
+    "switch2.port": 74
+  },
+  "timers": {
+  },
+  "timer_counters": {
+  },
+  "sets": {
+  },
+  "counter_rates": {
+    "statsd.bad_lines_seen": 0,
+    "statsd.packets_received": 1
+  },
+  "timer_data": {
+  },
+  "pctThreshold": [
+    90
+  ],
+  "statsd_metrics": {
+    "processing_time": 0
+  }
+}
