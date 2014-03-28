@@ -1,87 +1,74 @@
-var moment = require('moment')
+var moment = require('moment');
 
-durationFromKey = function(key, unit) {
-  var k = key.split('-')
-  var m1 = moment(parseInt(k[1]))
-  var m2 = moment(parseInt(k[2]))
+var query = require('./query');
+
+var durationFromKey = function(key, unit) {
+  var k = key.split('-');
+  var m1 = moment(parseInt(k[1]));
+  var m2 = moment(parseInt(k[2]));
   // console.log('%s - %s', m1.format('YYYY-MM-DD hh:mm:ss'), m2.format('YYYY-MM-DD hh:mm:ss'))
-  return m2.diff(m1, unit)
+  return m2.diff(m1, unit);
 };
 
-module.exports = compress =  function(opts) {
+module.exports = compress =  function(opts, compressionDone) {
   //create boundary
-  var domain = {}
-  var index = 0, lmt = 200
+  var domain = {size: 0, delBatch: [], start: '', end: ''};
+  var index = 0;
 
-  //Create delete batch in case the it needs to be deleted
-  domain.delBatch = []
+  var db = opts.db;
+  var config = opts.config;
+  var shouldTimeout = opts.shouldTimeout;
 
-  var db = opts.db
-  var config = opts.config
-  var shouldTimeout = opts.shouldTimeout
+  var limit = config.limit
 
-  db.createKeyStream({limit: lmt})
-    .on('data', function(key) {
+  db.createReadStream({limit: limit})
+    .on('data', function(data) {
 
-      var dur = durationFromKey(key, 'seconds')
+      var dur = durationFromKey(data.key, 'seconds');
       if (dur == 1) {
         //For uncompressed item, put them in the batch
-        domain.delBatch.push({type: 'del', key: key})
+        domain.delBatch.push({type: 'del', key: data.key, value: data.value});
       }
 
       //Save the boundaries
-      if (index == 0) {
-        domain.start = key
+      if (index === 0) {
+        domain.start = data.key;
       }
 
-      if (index >= lmt - 1) {
-        domain.end = key
-
-        //save the value for the end domain
-        db.get(domain.end, function(err, data) {
-          if (err) return console.log(err)
-          domain.endValue = data
-        })
+      if (index >= limit - 1) {
+        domain.end = data.key;
       }
 
+      domain.size = domain.size + new Buffer(data.value).length;
       index++;
     })
 
     .on('end', function() {
-
-      try {
-        db.db.approximateSize(domain.start, domain.end, function(err, size) {
-          console.log("-------------------------------------------------")
-          console.log("Size used by domain: [%s,%s]= %d", domain.start, domain.end, size)
-          console.log("-------------------------------------------------")
-          if (size > config.maxSize) {
-            console.log("#######Compression required######")
-            var newKey = 'stat_compressed-' + domain.start.split('-')[1] + '-' + domain.end.split('-')[2]
-
-            db.put(newKey, domain.endValue, function(err) {
-              if (err) return console.log(err)
-
-              console.log(domain.delBatch)
-
-              //Success: execute delete batch
-              db.batch(domain.delBatch, function(err) {
-                if (err) return console.log(err)
-
-                console.log("Successfully compressed. New key is: %s", newKey)
-                console.log("-----------------------------------------")
-              })
-
-            })
-          }
-        })
-      } catch (e) {
-        console.log(e)
+      if (domain.size < config.maxSize) {
+        return;
       }
 
-    })
+      console.log('Compressing...');
+      var start = moment();
+
+      //Construct new key
+      var newKey = 'stat_cmp-' + domain.start.split('-')[1] + '-' + domain.end.split('-')[2];
+      var newValue = JSON.stringify(query.average(domain.delBatch));
+      db.put(newKey, newValue, function(err) {
+        if (err) return console.log(err);
+        //Execute delete batch
+        db.batch(domain.delBatch, function(err) {
+          if (err) return console.log(err);
+          console.log('Compression Done. Took: %d ms', moment().diff(start, 'ms'));
+          //end of compression function
+          if (compressionDone) {
+            compressionDone();
+          }
+        });
+      });
+    }); //End of read stream
 
     if (shouldTimeout) {
-      setTimeout(function(){ compress(db, config) }, config.checkInterval)
+      setTimeout(function(){ compress(opts, compressionDone); }, config.checkInterval);
     }
-
-}
+};

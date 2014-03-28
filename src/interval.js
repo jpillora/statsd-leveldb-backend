@@ -1,20 +1,20 @@
-var _ = require('lodash')
-var moment = require('moment')
+var _ = require('lodash');
+var moment = require('moment');
 
 module.exports = function(config) {
-  var c = _.extend(config)
-  var tmp = config.checkInterval.split(' ')
+  var c = _.extend(config);
+  var tmp = config.checkInterval.split(' ');
 
-  c.checkInterval = makeDuration(config.checkInterval)
+  c.checkInterval = makeDuration(config.checkInterval);
   c.boundaries.forEach(function(item) {
-    item.boundary = makeDuration(item.boundary)
-    item.interval = makeDuration(item.interval)
-  })
+    item.boundary = makeDuration(item.boundary);
+    item.interval = makeDuration(item.interval);
+  });
 
-  return c
-}
+  return c;
+};
 
 function makeDuration(configItem) {
-  var tmp = configItem.split(' ')
-  return moment.duration(parseInt(tmp[0]), tmp[1])
+  var tmp = configItem.split(' ');
+  return moment.duration(parseInt(tmp[0]), tmp[1]);
 }

@@ -5,6 +5,7 @@
   "deleteIdleStats" : true,
   "maxSize" : 300,
   "checkInterval" : "10 seconds",
+  "limit" : 8640,
   "boundaries": [
     {
       "boundary" : "1 days",
