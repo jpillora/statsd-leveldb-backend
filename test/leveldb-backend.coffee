@@ -1,24 +1,26 @@
 should = require 'should'
 moment = require 'moment'
 level = require 'level'
+_ = require 'lodash'
 
 interval = require '../src/interval'
 query = require '../src/query'
-compress = require '../src/compress'
+downsample = require '../src/downsample'
 dummyData = require './dummyData'
 
 #StatD's config is in JS format which makes it hard to test because
 #require './config.js' produces error
 configSrcBuffer = ""
-config = {}
 db = {}
+cx = {}
+config = {}
 
 stats = require './stats-val.json'
 
 before (done) ->
   configSrcBuffer = require('fs').readFileSync('integration/config.js')
   config = JSON.parse configSrcBuffer
-  db = dummyData(config.limit)
+  cx = _.cloneDeep(config)
   done()
 
 after (done) ->
@@ -28,12 +30,27 @@ after (done) ->
 
 describe 'Config Check', ->
   it 'should test durations for validity', (done) ->
-    config = interval(config)
+    cx = interval(cx)
     curr = moment().unix()
-    moment().add(config.checkInterval).unix().should.not.be.exactly(curr)
-    config.boundaries.forEach (item) ->
+    moment().add(cx.checkInterval).unix().should.not.be.exactly(curr)
+    cx.boundaries.forEach (item) ->
       moment().add(item.boundary).unix().should.not.be.exactly(curr)
       moment().add(item.interval).unix().should.not.be.exactly(curr)
+    done()
+
+  it 'should compute data points for boundaries', (done) ->
+    c =
+      {
+        boundaries: [
+          {boundary: '1 day', interval: '1 seconds'},
+          {boundary: '1 week', interval: '5 minutes'}
+        ]
+      }
+
+    c =  interval(c)
+    c.boundaries[0].points.should.be.exactly(86400)
+    c.boundaries[1].points.should.be.exactly(2016)
+
     done()
 
 describe 'Statistical Computation', ->
@@ -66,14 +83,33 @@ describe 'Statistical Computation', ->
     done()
 
 describe 'Compress', ->
-  it 'should compress db of with limit set in the config file', (done) ->
+
+  conf = {}
+
+  it 'should make dummy data', (done) ->
+    conf = interval(_.cloneDeep(config))
+    db = dummyData(conf.boundaries)
+    done()
+
+  it 'should compress db', (done) ->
     this.timeout 100000
-    compress {db: db, config: config, shouldTimeout: false}, ->
-      keyCount = 0
-      db.createKeyStream()
-        .on 'data', (key) ->
-          keyCount = keyCount + 1 if key
-        .on 'end',
-          ->
-            keyCount.should.be.exactly(1)
-            done()
+    downsample {db: db, config: conf, shouldTimeout: false}, (boundarySize) ->
+      #done if all boundaries have been traversed
+      done() if boundarySize.index == boundarySize.size
+      # keyCount = 0
+      # db.createKeyStream()
+      #   .on 'data', (key) ->
+      #     keyCount = keyCount + 1 if key
+      #   .on 'end',
+      #     ->
+      #       keyCount.should.be.exactly(2)
+      #       done()
+
+  it 'should ensure that the dates in compressed data are correct', (done) ->
+    db.createKeyStream()
+      .on 'data', (key) ->
+        dates = interval.datesInKey(key)
+        from = dates.from.format('YYYY-MM-DD hh:mm:ss')
+        to = dates.to.format('YYYY-MM-DD hh:mm:ss')
+        console.log '%s - %s', from, to
+      .on 'end', -> done()

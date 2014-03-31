@@ -1,31 +1,33 @@
 level = require 'level'
 moment = require 'moment'
 cp = require 'child_process'
+assert = require 'assert'
 _ = require 'lodash'
 
 statsJson = JSON.stringify require './stats-val.json'
 
-module.exports = (limit) ->
+module.exports = (boundaries) ->
   db = level './db'
-  from = moment()
-
   stats = JSON.parse statsJson
 
-  for num in [1..limit]
-    to = moment(from).add(1, 'seconds')
-    key = 'stat-' + from.valueOf() + '-' + to.valueOf()
+  from = {}
+  to = {}
 
-    _.forOwn stats.gauges, (value, property) ->
-      stats.gauges[property] = Math.random() * (150 - 20) + 20
+  _.forEach boundaries, (each) ->
+    from = moment()
+    console.log 'Making %d data points... Hold on tight', each.points
+    for num in [1..each.points]
+      to = moment(from).add(each.interval.asSeconds(), 'seconds')
+      key = 'stat-' + from.valueOf() + '-' + to.valueOf()
 
-    # console.log(to.diff(from, 'seconds'))
+      _.forOwn stats.gauges, (value, property) ->
+        stats.gauges[property] = Math.random() * (150 - 20) + 20
 
-    db.put key, JSON.stringify(stats), (err) ->
-      console.log err if (err)
+      assert.equal(to.diff(from, 'seconds'), each.interval.asSeconds())
 
-    from = moment(to)
+      db.put key, JSON.stringify(stats), (err) ->
+        console.log err if (err)
 
-  db.createKeyStream()
-    .on 'data', (key) ->
+      from = moment(to)
 
   return db

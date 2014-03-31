@@ -24,7 +24,9 @@ exports.init = function(startupTime, initConfig, emitter) {
   emitter.on('flush', flush);
   emitter.on('status', status);
 
-  require('./compress')({db: db, config: config, shouldTimeout: true});
+  require('./downsample')({db: db, config: config, shouldTimeout: true}, function(){
+    //done with downsampling
+  });
 
   //ready
   return true;
