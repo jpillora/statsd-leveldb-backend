@@ -32,9 +32,10 @@ function random() {
     to = parseInt(to, 10);
     return randomInt(to-from)+from;
   });
+
   send(data);
-  setTimeout(random, 1000);
+  setTimeout(random, 1);
 }
 
 start();
-setTimeout(random, 1000);
+setTimeout(random, 1);

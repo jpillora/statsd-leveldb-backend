@@ -1,6 +1,8 @@
 var moment = require('moment');
-var query = require('./query');
 var _ = require('lodash');
+
+var interval = require('./interval');
+var query = require('./query');
 
 module.exports = downsample =  function(opts, done) {
   var db = opts.db;
@@ -8,8 +10,12 @@ module.exports = downsample =  function(opts, done) {
   var shouldTimeout = opts.shouldTimeout;
 
   _.forEach(config.boundaries, function(boundary, index) {
-    var domain = {size: 0, delBatch: [], start: '', end: ''};
-    domain.limit = boundary.point;
+    //Skip the first boundary
+    if (index === 0) return;
+
+    var domain = {size: 0, batch: [], start: '', end: ''};
+    domain.limit = config.boundaries[index - 1].points;
+
     domain.maxSize = config.maxSize;
     domain.boundarySize = {index: index + 1, size: config.boundaries.length};
 
@@ -20,7 +26,15 @@ module.exports = downsample =  function(opts, done) {
       })
       .on('end', function(err) {
         if (!domain.start) return;
-        compress(db, domain, boundary, done);
+
+        //Compute the jump key
+        var dates = interval.datesInKey(domain.start);
+        domain.start = interval.makeKeyFromDates(dates.from, dates.from.add(domain.limit, 'seconds'));
+        //compute limit
+        // domain.limit = boundary.points;
+        domain.limit = config.checkInterval.asSeconds();
+
+        selectBoundary(db, domain, boundary, done);
       });
   });
 
@@ -30,50 +44,48 @@ module.exports = downsample =  function(opts, done) {
   }
 };
 
-var durationFromKey = function(key, unit) {
-  var k = key.split('-');
-  var m1 = moment(parseInt(k[1]));
-  var m2 = moment(parseInt(k[2]));
-  // console.log('%s - %s', m1.format('YYYY-MM-DD hh:mm:ss'), m2.format('YYYY-MM-DD hh:mm:ss'))
-  return m2.diff(m1, unit);
-};
-
-var compress = function(db, domain, boundary, done) {
+var selectBoundary = function(db, domain, boundary, done) {
   db.createReadStream({start: domain.start, limit:domain.limit})
     .on('data', function(data) {
-      var dur = durationFromKey(data.key, 'seconds');
-
-      if (dur === boundary.interval.asSeconds()) {
-        //For uncompressed item, put them in the batch
-        domain.delBatch.push({type: 'del', key: data.key, value: data.value});
-        domain.size = domain.size + new Buffer(data.value).length;
-        domain.end = data.key;
-      }
+      domain.batch.push({type: 'del', key: data.key, value: data.value});
+      domain.size = domain.size + new Buffer(data.value).length;
+      domain.end = data.key;
     })
     .on('end', function(err) {
-      if (domain.size < domain.maxSize) return done(domain.boundarySize);
-      if (domain.delBatch.length < boundary.points) return done(domain.boundarySize);
+      // if (domain.size < domain.maxSize) return done(domain.boundarySize);
+      // if (domain.batch.length < boundary.points) return done(domain.boundarySize);
 
-      batchDelete(db, domain, boundary, done);
+      var start = moment()
+      var newBatch = compress(domain.batch, boundary.interval.asSeconds());
+      console.log('Compression done: Took %d ms', moment().diff(start, 'ms'));
+
+      //Batch: Delete and Put
+      db.batch(_.union(newBatch, domain.batch), function(err) {
+        if (err) return console.log(err);
+        done(domain.boundarySize);
+      });
+
     });
 };
 
-var batchDelete = function(db, domain, boundary, done) {
-  console.log('Compressing %d data points for boundary - %d s', boundary.points, boundary.interval.asSeconds());
-  var start = moment();
-  //Construct new key
-  var newKey = 'stat-' + domain.start.split('-')[1] + '-' + domain.end.split('-')[2];
-  var newValue = JSON.stringify(query.average(domain.delBatch));
-  db.put(newKey, newValue, function(err) {
-    if (err) return console.log(err);
-    //Execute delete batch
-    db.batch(domain.delBatch, function(err) {
-      if (err) return console.log(err);
-      console.log('Compression Done. Took: %d ms', moment().diff(start, 'ms'));
-      //end of compression function
-      if (done) {
-        done(domain.boundarySize);
-      }
-    });
-  });
+var compress = function(batch, range) {
+  var newBatch = [];
+  var i = 0;
+
+  while (i < batch.length) {
+    var dates = interval.datesInKey(batch[i].key);
+    var newKey = interval.makeKeyFromDates(dates.from, moment(dates.from).add(range, 'seconds'));
+
+    var statsBatch = [];
+    for (var j = i; j < range; j++) {
+      statsBatch.push(batch[j]);
+    }
+
+    var newValue = JSON.stringify(query.average(statsBatch));
+    newBatch.push({type: 'put', key: newKey, value: newValue});
+
+    i += range;
+  }
+
+  return newBatch;
 };

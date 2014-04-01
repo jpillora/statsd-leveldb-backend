@@ -14,7 +14,7 @@ module.exports = function(config) {
   c.boundaries.forEach(function(item) {
     item.boundary = makeDuration(item.boundary);
     item.interval = makeDuration(item.interval);
-    item.points = item.boundary.asSeconds() / item.interval.asSeconds();
+    item.points = item.boundary.asSeconds();
   });
 
   return c;
@@ -23,6 +23,18 @@ module.exports = function(config) {
 module.exports.datesInKey = function(key) {
   var k = key.split('-');
   return {from: moment(parseInt(k[1])), to: moment(parseInt(k[2]))};
+};
+
+module.exports.makeKeyFromDates = function(from, to) {
+  return 'stat-' + from.valueOf() + '-' + to.valueOf();
+};
+
+module.exports.durationFromKey = function(key, unit) {
+  var k = key.split('-');
+  var m1 = moment(parseInt(k[1]));
+  var m2 = moment(parseInt(k[2]));
+  // console.log('%s - %s', m1.format('YYYY-MM-DD hh:mm:ss'), m2.format('YYYY-MM-DD hh:mm:ss'))
+  return m2.diff(m1, unit);
 };
 
 function makeDuration(configItem) {

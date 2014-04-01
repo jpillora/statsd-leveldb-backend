@@ -4,14 +4,14 @@
   "flushInterval": 1000,
   "deleteIdleStats" : true,
   "maxSize" : 300,
-  "checkInterval" : "10 seconds",
+  "checkInterval" : "20 minutes",
   "boundaries": [
     {
-      "boundary" : "1 day",
+      "boundary" : "1 days",
       "interval" : "1 seconds"
     },
     {
-      "boundary" : "1 week",
+      "boundary" : "1 weeks",
       "interval" : "5 minutes"
     }
   ]

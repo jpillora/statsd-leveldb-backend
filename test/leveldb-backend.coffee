@@ -49,7 +49,7 @@ describe 'Config Check', ->
 
     c =  interval(c)
     c.boundaries[0].points.should.be.exactly(86400)
-    c.boundaries[1].points.should.be.exactly(2016)
+    c.boundaries[1].points.should.be.exactly(604800)
 
     done()
 
@@ -82,34 +82,36 @@ describe 'Statistical Computation', ->
     avg.gauges['switch1.cpu'].should.not.be.exactly(74)
     done()
 
-describe 'Compress', ->
-
+describe 'Unit Compression', ->
   conf = {}
 
   it 'should make dummy data', (done) ->
     conf = interval(_.cloneDeep(config))
-    db = dummyData(conf.boundaries)
+    db = dummyData(conf)
     done()
 
   it 'should compress db', (done) ->
-    this.timeout 100000
+    this.timeout 200000
     downsample {db: db, config: conf, shouldTimeout: false}, (boundarySize) ->
       #done if all boundaries have been traversed
       done() if boundarySize.index == boundarySize.size
-      # keyCount = 0
-      # db.createKeyStream()
-      #   .on 'data', (key) ->
-      #     keyCount = keyCount + 1 if key
-      #   .on 'end',
-      #     ->
-      #       keyCount.should.be.exactly(2)
-      #       done()
 
   it 'should ensure that the dates in compressed data are correct', (done) ->
+    this.timeout 3000
+    keyCount = 0
+    toJump = conf.boundaries[0].boundary.asSeconds()
     db.createKeyStream()
       .on 'data', (key) ->
-        dates = interval.datesInKey(key)
-        from = dates.from.format('YYYY-MM-DD hh:mm:ss')
-        to = dates.to.format('YYYY-MM-DD hh:mm:ss')
-        console.log '%s - %s', from, to
-      .on 'end', -> done()
+        keyCount = keyCount + 1
+        if keyCount > toJump
+          dates = interval.datesInKey(key)
+          from = dates.from.format('YYYY-MM-DD hh:mm:ss')
+          to = dates.to.format('YYYY-MM-DD hh:mm:ss')
+          diff = dates.to.diff(dates.from, 'seconds')
+          console.log '%s - %s Diff: %s secs', from, to, diff
+      .on 'end',
+        ->
+          console.log 'Compressed Key Count: %d', keyCount - toJump
+          done()
+
+describe 'Flow Compression', ->

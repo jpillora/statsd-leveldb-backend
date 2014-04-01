@@ -1,6 +1,8 @@
 var _ = require('lodash');
 
 exports.accumulate = function(records) {
+  if (records.length == 0) return {};
+
   var counter = _.cloneDeep(JSON.parse(records[0].value));
 
   //Reset all the properties in the counter to zero
@@ -9,6 +11,8 @@ exports.accumulate = function(records) {
   });
 
   _(records).forEach(function(item) {
+    if (!item) return;
+
     var a = JSON.parse(item.value);
     //Accumulate values of all the property
     _.forOwn(a.gauges, function(value, property){
