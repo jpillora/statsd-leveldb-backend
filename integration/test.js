@@ -34,8 +34,8 @@ function random() {
   });
 
   send(data);
-  setTimeout(random, 1);
+  setTimeout(random, 1000);
 }
 
 start();
-setTimeout(random, 1);
+setTimeout(random, 1000);

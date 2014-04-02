@@ -3,7 +3,7 @@ moment = require 'moment'
 level = require 'level'
 _ = require 'lodash'
 
-interval = require '../src/interval'
+util = require '../src/util'
 query = require '../src/query'
 downsample = require '../src/downsample'
 dummyData = require './dummyData'
@@ -11,7 +11,6 @@ dummyData = require './dummyData'
 #StatD's config is in JS format which makes it hard to test because
 #require './config.js' produces error
 configSrcBuffer = ""
-db = {}
 cx = {}
 config = {}
 
@@ -24,13 +23,13 @@ before (done) ->
   done()
 
 after (done) ->
-  db.close()
+  dummyData.db.close()
   require('child_process').exec('rm -rf db')
   done()
 
 describe 'Config Check', ->
   it 'should test durations for validity', (done) ->
-    cx = interval(cx)
+    cx = util.initIntervals(cx)
     curr = moment().unix()
     moment().add(cx.checkInterval).unix().should.not.be.exactly(curr)
     cx.boundaries.forEach (item) ->
@@ -41,13 +40,14 @@ describe 'Config Check', ->
   it 'should compute data points for boundaries', (done) ->
     c =
       {
+        checkInterval: "20 minutes",
         boundaries: [
           {boundary: '1 day', interval: '1 seconds'},
           {boundary: '1 week', interval: '5 minutes'}
         ]
       }
 
-    c =  interval(c)
+    c =  util.initIntervals(c)
     c.boundaries[0].points.should.be.exactly(86400)
     c.boundaries[1].points.should.be.exactly(604800)
 
@@ -82,36 +82,78 @@ describe 'Statistical Computation', ->
     avg.gauges['switch1.cpu'].should.not.be.exactly(74)
     done()
 
-describe 'Unit Compression', ->
+describe 'Compression', ->
   conf = {}
+  flushInterval = 0
+  initialPoints = 0
+  compressionCount = 0
+  dataToAdd = 0
+  start = {}
 
-  it 'should make dummy data', (done) ->
-    conf = interval(_.cloneDeep(config))
-    db = dummyData(conf)
-    done()
+  diffInDates = (key) ->
+    dates = util.datesInKey(key)
+    from = dates.from.format('YYYY-MM-DD hh:mm:ss')
+    to = dates.to.format('YYYY-MM-DD hh:mm:ss')
+    diff = dates.to.diff(dates.from, 'seconds')
+    return {from: from, to: to , diff: diff}
 
-  it 'should compress db', (done) ->
-    this.timeout 200000
-    downsample {db: db, config: conf, shouldTimeout: false}, (boundarySize) ->
-      #done if all boundaries have been traversed
-      done() if boundarySize.index == boundarySize.size
-
-  it 'should ensure that the dates in compressed data are correct', (done) ->
-    this.timeout 3000
+  checkCompressionCount = (done, count) ->
+    diffCnst = conf.boundaries[1].interval.asSeconds()
+    diffCount = 0
     keyCount = 0
-    toJump = conf.boundaries[0].boundary.asSeconds()
-    db.createKeyStream()
+
+    dummyData.db.createKeyStream()
       .on 'data', (key) ->
-        keyCount = keyCount + 1
-        if keyCount > toJump
-          dates = interval.datesInKey(key)
-          from = dates.from.format('YYYY-MM-DD hh:mm:ss')
-          to = dates.to.format('YYYY-MM-DD hh:mm:ss')
-          diff = dates.to.diff(dates.from, 'seconds')
-          console.log '%s - %s Diff: %s secs', from, to, diff
+        d = diffInDates(key)
+        diffCount = diffCount + 1 if d.diff == diffCnst
       .on 'end',
         ->
-          console.log 'Compressed Key Count: %d', keyCount - toJump
+          console.log 'Count with interval %d secs: %d ', diffCnst, diffCount
+          diffCount.should.be.exactly(count)
           done()
 
-describe 'Flow Compression', ->
+  compress = (done, checkCount) ->
+    downsample {db: dummyData.db, config: conf, shouldTimeout: false},
+      (boundarySize) ->
+        checkCompressionCount(done, checkCount)
+
+  countTotal = (done) ->
+    count = 0
+    dummyData.db.createKeyStream()
+      .on 'data', (key) ->
+        d = diffInDates(key)
+        # console.log('%s - %s, %d secs', d.from, d.to, d.diff)
+        count = count + 1
+      .on 'end',
+        ->
+          console.log '#Records: ' + count
+          done()
+
+  it 'should setup initial dummy data', (done) ->
+    conf = util.initIntervals(_.cloneDeep(config))
+    flushInterval = conf.boundaries[0].interval.asSeconds()
+    initialPoints = conf.boundaries[0].boundary.asSeconds() +
+                    conf.checkInterval.asSeconds()
+    compressionCount =  conf.checkInterval.asSeconds() /
+            conf.boundaries[1].interval.asSeconds()
+    dataToAdd = conf.checkInterval.asSeconds()
+    done()
+
+  it 'should add first round data and compress db', (done) ->
+    this.timeout 200000
+    start = moment()
+    dummyData.add 'stat', start, initialPoints, flushInterval
+    compress done, compressionCount
+
+  it 'should add second round data and compress db', (done) ->
+    this.timeout 200000
+
+    start.add conf.checkInterval
+    start.add conf.checkInterval
+
+    dummyData.add 'stat', start, dataToAdd, flushInterval
+    compress done, compressionCount * 2
+
+  it 'should list the total records in the db', (done) ->
+    this.timeout 100000
+    countTotal(done)

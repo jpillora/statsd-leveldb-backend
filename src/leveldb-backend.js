@@ -1,7 +1,9 @@
 var level = require('level');
 var moment = require('moment');
 
-var interval = require('./interval');
+var _ = require('lodash');
+
+var util = require('./util');
 
 //==================
 // leveldb interface
@@ -18,7 +20,7 @@ exports.init = function(startupTime, initConfig, emitter) {
   last = Date.now();
 
   //retrieve config provided to us
-  config = interval(initConfig) || {};
+  config = util.initIntervals(initConfig) || {};
 
   //bind to statsd events
   emitter.on('flush', flush);
@@ -46,7 +48,12 @@ function status(write) {
 }
 
 var add = function(from, to, metrics) {
-  var key = 'stat-' + from + '-' + to,
+
+  var prop = _.findKey(metrics.gauges, function(value){
+    return value !== 0;
+  });
+
+  var key = [prop, from.valueOf(), to.valueOf()].join('-'),
       data = JSON.stringify(metrics);
 
   db.put(key, data, function(err) {
@@ -57,4 +64,5 @@ var add = function(from, to, metrics) {
       console.log('%s = %s [Diff: %d secs]...', key, JSON.stringify(metrics.gauges).substr(0, 60), diff);
     }
   });
+
 };
