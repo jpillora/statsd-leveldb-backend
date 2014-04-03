@@ -61,21 +61,21 @@ exports.traverseDBInBatches = function(db, logic, end) {
       lastStatsName = statsname;
     })
     .on('end', function(err) {
-      
+
       if (batch.length > 0) {
         logic({name: lastStatsName, batch: _.cloneDeep(batch)});
       }
 
-      end()
+      end();
     });
 };
 
 exports.diffInDates = function(key) {
-  dates = exports.datesInKey(key)
-  from = dates.from.format('YYYY-MM-DD hh:mm:ss')
-  to = dates.to.format('YYYY-MM-DD hh:mm:ss')
-  diff = dates.to.diff(dates.from, 'seconds')
-  return {from: from, to: to , diff: diff}
+  dates = exports.datesInKey(key);
+  from = dates.from.format('YYYY-MM-DD hh:mm:ss');
+  to = dates.to.format('YYYY-MM-DD hh:mm:ss');
+  diff = dates.to.diff(dates.from, 'seconds');
+  return {from: from, to: to , diff: diff};
 };
 
 function makeDuration(configItem) {

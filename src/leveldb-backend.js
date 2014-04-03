@@ -27,7 +27,6 @@ exports.init = function(startupTime, initConfig, emitter) {
   emitter.on('status', status);
 
   require('./downsample')({db: db, config: config, shouldTimeout: true}, function(){
-    //done with downsampling
   });
 
   //ready

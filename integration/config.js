@@ -7,11 +7,11 @@
   "checkInterval" : "10 seconds",
   "boundaries": [
     {
-      "boundary" : "1 minutes",
+      "boundary" : "10 seconds",
       "interval" : "1 seconds"
     },
     {
-      "boundary" : "5 minutes",
+      "boundary" : "1 minutes",
       "interval" : "1 minutes"
     }
   ]
