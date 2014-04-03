@@ -13,75 +13,56 @@ module.exports = downsample =  function(opts, done) {
   var firsttime = true;
   var lastStatsName = "";
 
-  utils.traverseDBInBatches(function(batch){
-    console.log(batch)
-  });
+  var domain = {flushInterval: 0, batch: []}
 
-  _.forEach(config.boundaries, function(boundary, index) {
-    //Skip the first boundary
-    if (index === 0) return;
+  util.traverseDBInBatches(db, function(stats){
 
-    var domain = {size: 0, batch: [], start: ''};
-    domain.limit = config.boundaries[index - 1].points;
-    domain.flushInterval = config.boundaries[index - 1].interval.asSeconds();
+    var start = moment();
+    _.forEach(config.boundaries, function(boundary, index) {
+      //skip the first boundary
+      if (index === 0) {
+        return;
+      }
 
-    domain.maxSize = config.maxSize;
-    domain.boundarySize = {index: index + 1, size: config.boundaries.length};
+      domain.flushInterval = config.boundaries[index - 1].interval.asSeconds();
+      var range = config.checkInterval.asSeconds();
+      if (stats.batch.length < range) {
+        console.log('For %s not enough samples: %d', stats.name, domain.batch.length);
+        return;
+      }
 
-    //get the first key
-    db.createKeyStream({limit: 1})
-      .on('data', function(key) {
-        domain.start = key;
-      })
-      .on('end', function(err) {
-        if (!domain.start) return;
-
-        //Compute the jump key
-        var dates = util.datesInKey(domain.start);
-        dates.to = moment(dates.from).add(domain.limit, 'seconds');
-        domain.start = util.makeKeyFromDates('stat', dates.from, dates.to);
-
-        //compute limit
-        // domain.limit = boundary.points;
-        domain.limit = config.checkInterval.asSeconds();
-
-        selectBoundary(db, domain, boundary, done);
+      _.forEach(stats.batch, function(data) {
+        var duration = util.durationFromKey(data.key, 'seconds');
+        if (duration === domain.flushInterval) {
+          domain.batch.push({type: 'del', key: data.key, value: data.value});
+        }
       });
-  });
+
+      if (domain.batch.lengh < range) {
+        console.log('For %s not enough samples: %d', stats.name, domain.batch.length);
+        return;
+      }
+
+      var timeframe = boundary.interval.asSeconds();
+      var newBatch = compress(domain.batch, timeframe);
+      //Batch: Delete and Put
+      db.batch(_.union(newBatch, domain.batch), function(err) {
+        if (err) return console.log(err);
+        var time = moment().diff(start, 'ms');
+        console.log('For %s Took %d ms. Compressed %d records', stats.name , time, domain.batch.length);
+      });
+    });
+  },
+  function() {
+    console.log('End reached');
+    done();
+  }
+  );
 
   //Timeout
   if (shouldTimeout) {
     setTimeout(function(){ downsample(opts, done); }, config.checkInterval);
   }
-};
-
-var selectBoundary = function(db, domain, boundary, done) {
-  db.createReadStream({start: domain.start, limit:domain.limit})
-    .on('data', function(data) {
-
-      var duration = util.durationFromKey(data.key, 'seconds')
-      if (duration === domain.flushInterval) {
-        domain.batch.push({type: 'del', key: data.key, value: data.value});
-        domain.size = domain.size + new Buffer(data.value).length;
-      }
-
-    })
-    .on('end', function(err) {
-      // if (domain.size < domain.maxSize) return done(domain.boundarySize);
-      // if (domain.batch.length < boundary.points) return done(domain.boundarySize);
-
-      var start = moment();
-      var newBatch = compress(domain.batch, boundary.interval.asSeconds());
-      var time = moment().diff(start, 'ms')
-      console.log('Took %d ms. Compressed %d records', time, domain.batch.length);
-
-      //Batch: Delete and Put
-      db.batch(_.union(newBatch, domain.batch), function(err) {
-        if (err) return console.log(err);
-        done(domain.boundarySize);
-      });
-
-    });
 };
 
 var compress = function(batch, range) {
@@ -90,7 +71,8 @@ var compress = function(batch, range) {
 
   while (i < batch.length) {
     var dates = util.datesInKey(batch[i].key);
-    var newKey = util.makeKeyFromDates('stat', dates.from, moment(dates.from).add(range, 'seconds'));
+    var statsname = util.statisticName(batch[i].key);
+    var newKey = util.makeKeyFromDates(statsname, dates.from, moment(dates.from).add(range, 'seconds'));
 
     var statsBatch = [];
     for (var j = i; j < range; j++) {

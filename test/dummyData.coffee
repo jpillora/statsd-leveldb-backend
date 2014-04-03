@@ -4,12 +4,17 @@ cp = require 'child_process'
 assert = require 'assert'
 _ = require 'lodash'
 
-interval = require '../src/interval'
+util = require '../src/util'
 
 statsJson = JSON.stringify require './stats-val.json'
 stats = JSON.parse statsJson
 
 exports.db = level './db'
+
+keys = ['switch1.cpu',
+        'switch1.port12.,rxBytes',
+        'switch1.port14.rxBytes',
+        'switch2.cpu']
 
 exports.add = (prefix, startTime, noOf, flushInterval) ->
   from = startTime
@@ -19,7 +24,7 @@ exports.add = (prefix, startTime, noOf, flushInterval) ->
   num = 0
   while num < noOf
     to = moment(from).add(flushInterval, 'seconds')
-    key = interval.makeKeyFromDates(prefix, from, to)
+    key = util.makeKeyFromDates('switch1.cpu', from, to)
 
     _.forOwn stats.gauges, (value, property) ->
       stats.gauges[property] = Math.random() * (150 - 20) + 20

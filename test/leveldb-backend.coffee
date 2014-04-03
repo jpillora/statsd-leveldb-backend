@@ -145,15 +145,6 @@ describe 'Compression', ->
     dummyData.add 'stat', start, initialPoints, flushInterval
     compress done, compressionCount
 
-  it 'should add second round data and compress db', (done) ->
-    this.timeout 200000
-
-    start.add conf.checkInterval
-    start.add conf.checkInterval
-
-    dummyData.add 'stat', start, dataToAdd, flushInterval
-    compress done, compressionCount * 2
-
   it 'should list the total records in the db', (done) ->
     this.timeout 100000
     countTotal(done)

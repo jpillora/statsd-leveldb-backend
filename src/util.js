@@ -35,13 +35,12 @@ exports.statisticName = function(key) {
   return key.split('-')[0];
 };
 
-exports.traverseDBInBatches = function(db, logic) {
+exports.traverseDBInBatches = function(db, logic, end) {
   var statsNameChanged = true;
   var firsttime = true;
   var lastStatsName = "";
 
   var batch = [];
-
   db.createReadStream()
     .on('data', function(data) {
 
@@ -53,8 +52,8 @@ exports.traverseDBInBatches = function(db, logic) {
 
       statsNameChanged = lastStatsName !== statsname;
       if (statsNameChanged) {
-          logic({name: lastStatsName, batch:_.cloneDeep(batch)});
-          batch = [];
+        logic({name: lastStatsName, batch: _.cloneDeep(batch)});
+        batch = [];
       }
 
       batch.push(data);
@@ -62,8 +61,21 @@ exports.traverseDBInBatches = function(db, logic) {
       lastStatsName = statsname;
     })
     .on('end', function(err) {
-      console.log('End of stream');
+      
+      if (batch.length > 0) {
+        logic({name: lastStatsName, batch: _.cloneDeep(batch)});
+      }
+
+      end()
     });
+};
+
+exports.diffInDates = function(key) {
+  dates = exports.datesInKey(key)
+  from = dates.from.format('YYYY-MM-DD hh:mm:ss')
+  to = dates.to.format('YYYY-MM-DD hh:mm:ss')
+  diff = dates.to.diff(dates.from, 'seconds')
+  return {from: from, to: to , diff: diff}
 };
 
 function makeDuration(configItem) {
