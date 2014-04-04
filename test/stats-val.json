@@ -4,9 +4,6 @@
     "statsd.packets_received": 1
   },
   "gauges": {
-    "switch1.cpu": 74,
-    "switch1.port": 74,
-    "switch2.port": 74
   },
   "timers": {
   },

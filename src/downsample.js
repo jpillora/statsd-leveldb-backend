@@ -4,31 +4,48 @@ var _ = require('lodash');
 var util = require('./util');
 var query = require('./query');
 
+function skipBoundary(config) {
+  return config.boundaries[0].boundary.asSeconds();
+}
+
+function pruneBoundary(config) {
+  var count = config.boundaries.length;
+  var prune = config.boundaries[count - 1];
+
+  var limit = prune.boundary.asSeconds() / prune.interval.asSeconds()
+  return {limit: limit, interval: prune.interval.asSeconds()};
+}
+
 module.exports = downsample =  function(opts, done) {
   var db = opts.db;
   var config = opts.config;
   var shouldTimeout = opts.shouldTimeout;
 
   var domain = {flushInterval: 0, batch: [], skipBoundary : 0, pruneLimit: 0};
-
-  domain.skipBoundary = config.boundaries[0].boundary.asSeconds();
-  var boundaryCount = config.boundaries.length;
-  domain.pruneLimit = config.boundaries[boundaryCount - 1].boundary.asSeconds();
+  domain.skipBoundary = skipBoundary(config);
+  domain.pruneBoundary = pruneBoundary(config);
 
   var start = moment();
 
   util.traverseDBInBatches(db,
     function(stats){
 
+      var toPrune = _.filter(stats.batch, function(data) {
+        var dur = util.durationFromKey(data.key, 'seconds');
+        return dur === domain.pruneBoundary.interval;
+      });
+
+      if (!toPrune) toPrune = [];
+
       //First Prune
-      var diff = stats.batch.length - domain.pruneLimit;
-      if (stats.batch.length >= domain.pruneLimit && diff > 0) {
+      var diff = toPrune.length - domain.pruneBoundary.limit;
+      if (diff > 0 && toPrune.length >= domain.pruneBoundary.limit) {
         var toDel = [];
 
         var i = 0;
         while (i < diff) {
-          var k = stats.batch[i].key;
-          var v = stats.batch[i].value;
+          var k = toPrune[i].key;
+          var v = toPrune[i].value;
           toDel.push({type: 'del', key:k, value:v});
           i = i + 1;
         }
@@ -79,7 +96,7 @@ var selectBoundary = function(db, config, domain, stats) {
 
       _.forEach(stats.batch, function(data, index) {
           var duration = util.durationFromKey(data.key, 'seconds');
-          if (duration === domain.flushInterval) {
+          if (duration === domain.flushInterval && domain.batch.length < range) {
             domain.batch.push({type: 'del', key: data.key, value: data.value});
           }
       });

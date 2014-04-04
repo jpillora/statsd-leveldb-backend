@@ -26,8 +26,8 @@ exports.init = function(startupTime, initConfig, emitter) {
   emitter.on('flush', flush);
   emitter.on('status', status);
 
-  require('./downsample')({db: db, config: config, shouldTimeout: true}, function(){
-  });
+  // require('./downsample')({db: db, config: config, shouldTimeout: true}, function(){
+  // });
 
   //ready
   return true;

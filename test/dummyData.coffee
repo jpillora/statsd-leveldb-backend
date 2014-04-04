@@ -12,27 +12,29 @@ stats = JSON.parse statsJson
 exports.db = level './db'
 
 keys = ['switch1.cpu',
-        'switch1.port12.,rxBytes',
+        'switch1.port12.rxBytes',
         'switch1.port14.rxBytes',
         'switch2.cpu']
 
-exports.add = (prefix, startTime, noOf, flushInterval) ->
-  from = startTime
+exports.add = (prefix, noOf, flushInterval) ->
+  from = moment()
   to = {}
 
   console.log 'Making %d data points... Hold on tight', noOf
-  num = 0
-  while num < noOf
-    to = moment(from).add(flushInterval, 'seconds')
-    key = util.makeKeyFromDates('switch1.cpu', from, to)
+  _.forEach keys, (key, index) ->
+    num = 0
+    while num < noOf
+      to = moment(from).add flushInterval, 'seconds'
 
-    _.forOwn stats.gauges, (value, property) ->
-      stats.gauges[property] = Math.random() * (150 - 20) + 20
+      k = util.makeKeyFromDates key, from, to
+      stats.gauges[key] = Math.random() * (150 - 20) + 20
 
-    assert.equal(to.diff(from, 'seconds'), flushInterval)
+      assert.equal(to.diff(from, 'seconds'), flushInterval)
 
-    exports.db.put key, JSON.stringify(stats), (err) ->
-      console.log err if (err)
+      exports.db.put k, JSON.stringify(stats), (err) ->
+        console.log err if (err)
 
-    from = moment(to)
-    num = num + 1
+      from = moment(to)
+      num = num + 1
+
+  # util.printDB exports.db

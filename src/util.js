@@ -78,7 +78,26 @@ exports.diffInDates = function(key) {
   return {from: from, to: to , diff: diff};
 };
 
+exports.printDB = function(db, next) {
+  exports.traverseDBInBatches(db, function(stats) {
+    console.log('%s, %d', stats.name, stats.batch.length);
+
+    stats.batch.forEach(function(data) {
+      var dates = exports.datesInKey(data.key);
+      var from = dates.from.format('YYYY-MM-DD hh:mm:ss');
+      var to = dates.to.format('YYYY-MM-DD hh:mm:ss');
+      var diff = dates.to.diff(dates.from, 'seconds');
+
+      console.log('[%s - %s] - Diff: %d secs', from, to, diff);
+    });
+
+  },
+  function() {
+    next();
+  });
+};
+
 function makeDuration(configItem) {
   var tmp = configItem.split(' ');
   return moment.duration(parseInt(tmp[0]), tmp[1]);
-}
+};
