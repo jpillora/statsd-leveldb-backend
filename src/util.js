@@ -16,7 +16,9 @@ exports.initIntervals = function(config) {
 
 exports.datesInKey = function(key) {
   var k = key.split('-');
-  return {from: moment(parseInt(k[1])), to: moment(parseInt(k[2]))};
+  var from  = moment(parseInt(k[1]));
+  var to = moment(parseInt(k[2]));
+  return {from: from, to: to};
 };
 
 exports.makeKeyFromDates = function(prefix, from, to) {
@@ -35,15 +37,21 @@ exports.statisticName = function(key) {
   return key.split('-')[0];
 };
 
+var makeScannedObject = function(statsname, batch, startTime) {
+  var diff = moment().diff(startTime, 'milliseconds');
+  return {name: statsname, batch: batch, diff:diff};
+};
+
 exports.traverseDBInBatches = function(db, logic, end) {
   var statsNameChanged = true;
   var firsttime = true;
   var lastStatsName = "";
 
   var batch = [];
+  var start = moment();
+
   db.createReadStream()
     .on('data', function(data) {
-
       var statsname = exports.statisticName(data.key);
       if (firsttime) {
         lastStatsName = statsname;
@@ -52,20 +60,18 @@ exports.traverseDBInBatches = function(db, logic, end) {
 
       statsNameChanged = lastStatsName !== statsname;
       if (statsNameChanged) {
-        logic({name: lastStatsName, batch: _.cloneDeep(batch)});
+        logic(makeScannedObject(lastStatsName, batch, start))
         batch = [];
+        start = moment();
       }
 
       batch.push(data);
-
       lastStatsName = statsname;
     })
     .on('end', function(err) {
-
       if (batch.length > 0) {
-        logic({name: lastStatsName, batch: _.cloneDeep(batch)});
+        logic(makeScannedObject(lastStatsName, batch, start))
       }
-
       end();
     });
 };
@@ -100,4 +106,4 @@ exports.printDB = function(db, next) {
 function makeDuration(configItem) {
   var tmp = configItem.split(' ');
   return moment.duration(parseInt(tmp[0]), tmp[1]);
-};
+}

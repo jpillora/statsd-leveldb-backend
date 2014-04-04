@@ -12,7 +12,7 @@ function pruneBoundary(config) {
   var count = config.boundaries.length;
   var prune = config.boundaries[count - 1];
 
-  var limit = prune.boundary.asSeconds() / prune.interval.asSeconds()
+  var limit = prune.boundary.asSeconds() / prune.interval.asSeconds();
   return {limit: limit, interval: prune.interval.asSeconds()};
 }
 
@@ -29,6 +29,8 @@ module.exports = downsample =  function(opts, done) {
 
   util.traverseDBInBatches(db,
     function(stats){
+
+      console.log('For %s scanning took: %d ms', stats.name, stats.diff);
 
       var toPrune = _.filter(stats.batch, function(data) {
         var dur = util.durationFromKey(data.key, 'seconds');
@@ -107,12 +109,14 @@ var selectBoundary = function(db, config, domain, stats) {
         return;
       }
 
+      var cstart = moment();
       var timeframe = boundary.interval.asSeconds();
       var newBatch = compress(stats.name, domain.batch, timeframe);
       //Batch: Delete and Put
       db.batch(_.union(newBatch, domain.batch), function(err) {
         if (err) return console.log(err);
-        console.log('For %s, Compressed %d records', stats.name, domain.batch.length);
+        var diff = moment().diff(cstart, 'ms');
+        console.log('For %s, Compressed %d records. Took: %s ms', stats.name, domain.batch.length, diff);
         domain.batch = [];
       });
 

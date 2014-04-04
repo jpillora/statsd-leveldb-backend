@@ -11,6 +11,18 @@ stats = JSON.parse statsJson
 
 exports.db = level './db'
 
+ # rxPackets:  1,
+ # txPackets:  2,
+ # rxBytes:    3,
+ # txBytes:    4,
+ # rxDropped:  5,
+ # txDropped:  6,
+ # rxErrors:   7,
+ # txErrors:   8,
+ # rxOverErr:  10,
+ # rxCrcErr:   11,
+ # collisions: 12
+
 keys = ['switch1.cpu',
         'switch1.port12.rxBytes',
         'switch1.port14.rxBytes',
@@ -20,6 +32,7 @@ exports.add = (prefix, noOf, flushInterval) ->
   from = moment()
   to = {}
 
+  start = moment()
   console.log 'Making %d data points... Hold on tight', noOf
   _.forEach keys, (key, index) ->
     num = 0
@@ -38,3 +51,4 @@ exports.add = (prefix, noOf, flushInterval) ->
       num = num + 1
 
   # util.printDB exports.db
+  console.log 'Finished making data. Took %d ms', moment().diff(start, 'ms')
