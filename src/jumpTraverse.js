@@ -1,35 +1,58 @@
 var _ = require('lodash');
-var util = require('./util');
 var moment = require('moment');
 
-module.exports = function(db, skip, done) {
+var util = require('./util');
+var boundary = require('./boundary');
+
+function skipBoundary(config) {
+  return config.boundaries[0].boundary.asSeconds();
+}
+
+function pruneBoundary(config) {
+  var count = config.boundaries.length;
+  var prune = config.boundaries[count - 1];
+  var limit = prune.boundary.asSeconds() / prune.interval.asSeconds();
+  return {limit: limit, interval: prune.interval.asSeconds()};
+}
+
+module.exports = ds = function(opts, done) {
+  var db = opts.db;
+  var config = opts.config;
+  var shouldTimeout = opts.shouldTimeout;
+
+  var domain = {
+    statsname: '',
+    flushInterval: 0,
+    skipBoundary : 0,
+    batch: [],
+  };
+  domain.skipBoundary = skipBoundary(config);
+  domain.pruneBoundary = pruneBoundary(config);
+
+  var start = moment();
 
   eachPrefix(db, function(prefix) {
-
     var batch = [];
-    db.createReadStream({start: prefix, limit: skip})
+
+    db.createReadStream({start: prefix, limit: domain.skipBoundary})
       .on('data', function(data) {
         batch.push(data);
       })
       .on('end', function() {
-
-        _.forEach(batch, function(item) {
-          util.printKey(item.key);
-        });
-
+        domain.prefix = prefix;
+        boundary(db, config, domain, batch);
+        console.log('Scanning %s took %d ms', prefix, moment().diff(start, 'ms'));
       });
+  });
 
-  }, done);
-
-  // startKey(db, function(start) {
-  //   endKey(db, start, skip, function(end) {
-  //     traverse(db, start, end);
-  //   });
-  // });
+  //Timeout
+  if (shouldTimeout) {
+    setTimeout(function(){ ds(opts, done); }, config.checkInterval);
+  }
 
 };
 
-var eachPrefix = function(db, onEach, done) {
+var eachPrefix = function(db, onEach) {
   var prefixes = {};
   db.createReadStream({start: '/prefixes', limit:1})
     .on('data', function(key){
@@ -37,11 +60,10 @@ var eachPrefix = function(db, onEach, done) {
     })
     .on('end', function(){
 
-      _.forIn(prefixes, function(value, key){
-        onEach(key);
+      _.forIn(prefixes, function(value, prefix){
+        onEach(prefix);
       });
 
-      done();
     });
 };
 

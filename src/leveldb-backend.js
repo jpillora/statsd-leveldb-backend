@@ -44,6 +44,8 @@ exports.init = function(startupTime, initConfig, emitter) {
   // require('./downsample')({db: db, config: config, shouldTimeout: true}, function(){
   // });
 
+  require('./jumpTraverse')({db: db, config: config, shouldTimeout: true});
+
   //ready
   return true;
 };
@@ -66,8 +68,6 @@ var add = function(from, to, metrics) {
   var prop = _.findKey(metrics.gauges, function(value){
     return value !== 0;
   });
-
-  if (String(prop).trim().length === 0) return;
 
   var key = [prop, from.valueOf(), to.valueOf()].join('-'),
       data = JSON.stringify(metrics);

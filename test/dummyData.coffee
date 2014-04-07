@@ -23,17 +23,19 @@ exports.db = level './db'
  # rxCrcErr:   11,
  # collisions: 12
 
-keys = ['switch1.cpu',
-        'switch1.port12.rxBytes'
-        'switch1.port14.rxBytes',
-        'switch2.cpu']
+keys = {
+  'switch1.cpu': true
+  'switch1.port12.rxBytes': true,
+  'switch1.port14.rxBytes': true,
+  'switch2.cpu': true
+}
 
 exports.add = (prefix, noOf, flushInterval) ->
   from = moment()
   to = {}
 
   start = moment()
-  _.forEach keys, (key, index) ->
+  _.forIn keys, (value, key) ->
     console.log 'Making %d data points for key %s... Hold on tight', noOf, key
     num = 0
     while num < noOf
@@ -51,4 +53,7 @@ exports.add = (prefix, noOf, flushInterval) ->
       num = num + 1
 
   # util.printDB exports.db
+  exports.db.put '/prefixes', JSON.stringify(keys), (err) ->
+    console.log err if err
+
   console.log 'Finished making data. Took %d ms', moment().diff(start, 'ms')

@@ -132,9 +132,9 @@ describe 'Compression', ->
     dataToAdd = conf.checkInterval.asSeconds()
     done()
 
-  # it 'should test traverse by jump', (done) ->
-  #   this.timeout 5000
-  #   jumpTraverse(dummyData.db, 8000, done)
+  it 'should test traverse by jump', (done) ->
+    dummyData.add 'stat', initialPoints, flushInterval
+    jumpTraverse {db: dummyData.db, config: conf, shouldTimeout: false}
 
   # it 'should add data and compress db', (done) ->
   #   this.timeout initialPoints * 10000
