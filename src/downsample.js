@@ -3,6 +3,7 @@ var _ = require('lodash');
 
 var util = require('./util');
 var query = require('./query');
+var traverse = require('./batchTraverse');
 
 function skipBoundary(config) {
   return config.boundaries[0].boundary.asSeconds();
@@ -27,7 +28,7 @@ module.exports = downsample =  function(opts, done) {
 
   var start = moment();
 
-  util.traverseDBInBatches(db,
+  traverse(db,
     function(stats){
 
       console.log('For %s scanning took: %d ms', stats.name, stats.diff);
@@ -70,7 +71,7 @@ module.exports = downsample =  function(opts, done) {
     //End of traversal
     function() {
       var time = moment().diff(start, 'ms');
-      console.log('Scanning took: %d secs', time);
+      console.log('Scanning & Compression took: %d secs', time);
       done();
     }
   );

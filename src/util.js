@@ -1,7 +1,7 @@
 var _ = require('lodash');
 var moment = require('moment');
 
-exports.initIntervals = function(config) {
+var initIntervals = function(config) {
   var c = _.extend(config);
 
   c.checkInterval = makeDuration(config.checkInterval);
@@ -14,18 +14,26 @@ exports.initIntervals = function(config) {
   return c;
 };
 
-exports.datesInKey = function(key) {
+var datesInKey = function(key) {
   var k = key.split('-');
   var from  = moment(parseInt(k[1]));
   var to = moment(parseInt(k[2]));
-  return {from: from, to: to};
+  return {prefix: k[0], from: from, to: to};
 };
 
-exports.makeKeyFromDates = function(prefix, from, to) {
+var diffInDates = function(key) {
+  var dates = datesInKey(key);
+  var from = dates.from.format('YYYY-MM-DD hh:mm:ss');
+  var to = dates.to.format('YYYY-MM-DD hh:mm:ss');
+  var diff = dates.to.diff(dates.from, 'seconds');
+  return {prefix:dates.prefix, from: from, to: to , diff: diff};
+};
+
+var makeKeyFromDates = function(prefix, from, to) {
   return [prefix, from.valueOf(), to.valueOf()].join('-');
 };
 
-exports.durationFromKey = function(key, unit) {
+var durationFromKey = function(key, unit) {
   var k = key.split('-');
   var m1 = moment(parseInt(k[1]));
   var m2 = moment(parseInt(k[2]));
@@ -33,68 +41,21 @@ exports.durationFromKey = function(key, unit) {
   return m2.diff(m1, unit);
 };
 
-exports.statisticName = function(key) {
+var statisticName = function(key) {
   return key.split('-')[0];
 };
 
-var makeScannedObject = function(statsname, batch, startTime) {
-  var diff = moment().diff(startTime, 'milliseconds');
-  return {name: statsname, batch: batch, diff:diff};
-};
+function makeDuration(configItem) {
+  var tmp = configItem.split(' ');
+  return moment.duration(parseInt(tmp[0]), tmp[1]);
+}
 
-exports.traverseDBInBatches = function(db, logic, end) {
-  var statsNameChanged = true;
-  var firsttime = true;
-  var lastStatsName = "";
+var printDB = function(db, next) {
+  require('./batchTraverse')(db, function(stats) {
 
-  var batch = [];
-  var start = moment();
-
-  db.createReadStream()
-    .on('data', function(data) {
-      var statsname = exports.statisticName(data.key);
-      if (firsttime) {
-        lastStatsName = statsname;
-        firsttime = false;
-      }
-
-      statsNameChanged = lastStatsName !== statsname;
-      if (statsNameChanged) {
-        logic(makeScannedObject(lastStatsName, batch, start))
-        batch = [];
-        start = moment();
-      }
-
-      batch.push(data);
-      lastStatsName = statsname;
-    })
-    .on('end', function(err) {
-      if (batch.length > 0) {
-        logic(makeScannedObject(lastStatsName, batch, start))
-      }
-      end();
-    });
-};
-
-exports.diffInDates = function(key) {
-  dates = exports.datesInKey(key);
-  from = dates.from.format('YYYY-MM-DD hh:mm:ss');
-  to = dates.to.format('YYYY-MM-DD hh:mm:ss');
-  diff = dates.to.diff(dates.from, 'seconds');
-  return {from: from, to: to , diff: diff};
-};
-
-exports.printDB = function(db, next) {
-  exports.traverseDBInBatches(db, function(stats) {
     console.log('%s, %d', stats.name, stats.batch.length);
-
     stats.batch.forEach(function(data) {
-      var dates = exports.datesInKey(data.key);
-      var from = dates.from.format('YYYY-MM-DD hh:mm:ss');
-      var to = dates.to.format('YYYY-MM-DD hh:mm:ss');
-      var diff = dates.to.diff(dates.from, 'seconds');
-
-      console.log('[%s - %s] - Diff: %d secs', from, to, diff);
+      printKey(data.key);
     });
 
   },
@@ -103,7 +64,16 @@ exports.printDB = function(db, next) {
   });
 };
 
-function makeDuration(configItem) {
-  var tmp = configItem.split(' ');
-  return moment.duration(parseInt(tmp[0]), tmp[1]);
-}
+var printKey = function(key) {
+  var d = diffInDates(key);
+  console.log('%s - [%s - %s] - Diff: %d secs', d.prefix, d.from, d.to, d.diff);
+};
+
+exports.initIntervals = initIntervals;
+exports.datesInKey = datesInKey;
+exports.makeKeyFromDates = makeKeyFromDates;
+exports.durationFromKey = durationFromKey;
+exports.statisticName = statisticName;
+exports.diffInDates = diffInDates;
+exports.printDB = printDB;
+exports.printKey = printKey;

@@ -8,7 +8,7 @@
   "boundaries": [
     {
       "boundary" : "1 days",
-      "interval" : "1 seconds"
+      "interval" : "1 minutes"
     },
     {
       "boundary" : "1 weeks",

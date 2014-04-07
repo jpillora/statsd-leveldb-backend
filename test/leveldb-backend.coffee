@@ -7,6 +7,7 @@ util = require '../src/util'
 query = require '../src/query'
 downsample = require '../src/downsample'
 dummyData = require './dummyData'
+jumpTraverse = require '../src/jumpTraverse'
 
 #StatD's config is in JS format which makes it hard to test because
 #require './config.js' produces error
@@ -131,12 +132,16 @@ describe 'Compression', ->
     dataToAdd = conf.checkInterval.asSeconds()
     done()
 
-  it 'should add data and compress db', (done) ->
-    this.timeout initialPoints * 10000
-    dummyData.add 'stat', initialPoints, flushInterval
-    compress done, compressionCount
+  # it 'should test traverse by jump', (done) ->
+  #   this.timeout 5000
+  #   jumpTraverse(dummyData.db, 8000, done)
 
-  it 'should list the total records in the db', (done) ->
-    this.timeout 100000
-    done()
-    # util.printDB(dummyData.db, done)
+  # it 'should add data and compress db', (done) ->
+  #   this.timeout initialPoints * 10000
+  #   dummyData.add 'stat', initialPoints, flushInterval
+  #   compress done, compressionCount
+  #
+  # it 'should list the total records in the db', (done) ->
+  #   this.timeout 100000
+  #   # util.printDB(dummyData.db, done)
+  #   done()

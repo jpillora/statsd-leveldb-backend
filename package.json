@@ -13,7 +13,8 @@
     "level": "^0.18.0",
     "moment": "^2.5.1",
     "lodash": "^2.4.1",
-    "leveldown": "^0.10.2"
+    "leveldown": "^0.10.2",
+    "levelup": "^0.18.2"
   },
   "devDependencies": {
     "statsd": "^0.7.1",

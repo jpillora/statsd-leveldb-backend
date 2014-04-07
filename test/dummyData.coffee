@@ -24,7 +24,7 @@ exports.db = level './db'
  # collisions: 12
 
 keys = ['switch1.cpu',
-        'switch1.port12.rxBytes',
+        'switch1.port12.rxBytes'
         'switch1.port14.rxBytes',
         'switch2.cpu']
 
@@ -33,8 +33,8 @@ exports.add = (prefix, noOf, flushInterval) ->
   to = {}
 
   start = moment()
-  console.log 'Making %d data points... Hold on tight', noOf
   _.forEach keys, (key, index) ->
+    console.log 'Making %d data points for key %s... Hold on tight', noOf, key
     num = 0
     while num < noOf
       to = moment(from).add flushInterval, 'seconds'
