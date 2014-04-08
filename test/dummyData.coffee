@@ -30,7 +30,7 @@ keys = {
   'switch2.cpu': true
 }
 
-exports.add = (prefix, noOf, flushInterval) ->
+exports.add = (noOf, flushInterval) ->
   from = moment()
   to = {}
 
@@ -53,7 +53,7 @@ exports.add = (prefix, noOf, flushInterval) ->
       num = num + 1
 
   # util.printDB exports.db
-  exports.db.put '/prefixes', JSON.stringify(keys), (err) ->
+  exports.db.put '0', JSON.stringify(keys), (err) ->
     console.log err if err
 
   console.log 'Finished making data. Took %d ms', moment().diff(start, 'ms')

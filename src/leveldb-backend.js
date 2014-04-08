@@ -1,4 +1,4 @@
-var level = require('level');
+var levelup = require('level');
 var moment = require('moment');
 
 var _ = require('lodash');
@@ -7,7 +7,7 @@ var util = require('./util');
 //==================
 // leveldb interface
 //==================
-var db = level('./db');
+var db = levelup('./db')
 var keysCache = {};
 
 //==================
@@ -20,12 +20,12 @@ var last, config;
 //======================
 var exitHandler = function() {
   if (_.isEmpty(keysCache)) return process.exit();
-  db.put('/prefixes', JSON.stringify(keysCache), function(err){
+  db.put('0', JSON.stringify(keysCache), function(err){
     if (!err) {
       console.log('Saved keys');
     }
     process.exit();
-  })
+  });
 };
 process.on('exit', exitHandler);
 process.on('SIGINT', exitHandler);
@@ -64,23 +64,37 @@ function status(write) {
 }
 
 var add = function(from, to, metrics) {
+  var batch = [];
+  _.forIn(metrics.gauges, function(value, key){
 
-  var prop = _.findKey(metrics.gauges, function(value){
-    return value !== 0;
+    if (key === 'statsd.timestamp_lag') return;
+
+    var k = [key, from.valueOf(), to.valueOf()].join('-');
+    keysCache[key] = true;
+
+    batch.push({type: 'put', key:k, value:value})
+
+    var diff = to.diff(from, 'seconds');
+    console.log('%s = %s [%d secs]...', k, value, diff);
   });
 
-  var key = [prop, from.valueOf(), to.valueOf()].join('-'),
-      data = JSON.stringify(metrics);
+  db.batch(batch, function(err) {
+    if (err) console.log(err);
+  })
 
-  db.put(key, data, function(err) {
-    if(err)
-      console.error(err);
-    else {
-      //Save the propery in key cache
-      keysCache[prop] = true;
-
-      var diff = to.diff(from, 'seconds');
-      console.log('%s = %s [Diff: %d secs]...', key, JSON.stringify(metrics.gauges).substr(0, 60), diff);
-    }
-  });
+  // var prop = _.findKey(metrics.gauges, function(value){
+  //   return value !== 0;
+  // });
+  // var key = [prop, from.valueOf(), to.valueOf()].join('-'),
+  //     data = JSON.stringify(metrics);
+  // db.put(key, data, function(err) {
+  //   if(err)
+  //     console.error(err);
+  //   else {
+  //     //Save the propery in key cache
+  //     keysCache[prop] = true;
+  //     var diff = to.diff(from, 'seconds');
+  //     console.log('%s = %s [Diff: %d secs]...', key, JSON.stringify(metrics.gauges).substr(0, 60), diff);
+  //   }
+  // });
 };

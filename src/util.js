@@ -53,7 +53,7 @@ function makeDuration(configItem) {
 var printDB = function(db, next) {
   require('./batchTraverse')(db, function(stats) {
 
-    // console.log('%s, %d', stats.name, stats.batch.length);
+    console.log('%s, %d', stats.name, stats.batch.length);
     stats.batch.forEach(function(data) {
       printKey(data.key);
     });

@@ -9,12 +9,9 @@
   "author": "Jaime Pillora <dev@jpillora.com>",
   "license": "MIT",
   "dependencies": {
-    "level-sublevel": "^5.2.0",
     "level": "^0.18.0",
     "moment": "^2.5.1",
-    "lodash": "^2.4.1",
-    "leveldown": "^0.10.2",
-    "levelup": "^0.18.2"
+    "lodash": "^2.4.1"
   },
   "devDependencies": {
     "statsd": "^0.7.1",

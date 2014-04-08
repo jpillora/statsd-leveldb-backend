@@ -42,6 +42,7 @@ module.exports = function(db, config, domain, batch) {
       console.log('For %s, Compressed %d records. Took: %s ms', domain.prefix, domain.batch.length, diff);
       domain.batch = [];
     });
+
   });
 };
 

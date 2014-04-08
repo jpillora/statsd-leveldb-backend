@@ -130,11 +130,15 @@ describe 'Compression', ->
     compressionCount =  conf.checkInterval.asSeconds() /
             conf.boundaries[1].interval.asSeconds()
     dataToAdd = conf.checkInterval.asSeconds()
+    dummyData.add initialPoints, flushInterval
     done()
 
   it 'should test traverse by jump', (done) ->
-    dummyData.add 'stat', initialPoints, flushInterval
+    this.timeout 3100
     jumpTraverse {db: dummyData.db, config: conf, shouldTimeout: false}
+    setTimeout ( ->
+      done()
+      ), 3000
 
   # it 'should add data and compress db', (done) ->
   #   this.timeout initialPoints * 10000
@@ -143,5 +147,5 @@ describe 'Compression', ->
   #
   # it 'should list the total records in the db', (done) ->
   #   this.timeout 100000
-  #   # util.printDB(dummyData.db, done)
-  #   done()
+  #   util.printDB(dummyData.db, done)
+  #   # done()
