@@ -1,6 +1,8 @@
 var _ = require('lodash');
 var moment = require('moment');
 
+var keySeperator = '-';
+
 var initIntervals = function(config) {
   var c = _.extend(config);
 
@@ -15,7 +17,7 @@ var initIntervals = function(config) {
 };
 
 var datesInKey = function(key) {
-  var k = key.split('-');
+  var k = key.split(keySeperator);
   var from  = moment(parseInt(k[1]));
   var to = moment(parseInt(k[2]));
   return {prefix: k[0], from: from, to: to};
@@ -30,11 +32,16 @@ var diffInDates = function(key) {
 };
 
 var makeKeyFromDates = function(prefix, from, to) {
-  return [prefix, from.valueOf(), to.valueOf()].join('-');
+  return [prefix, from.valueOf(), to.valueOf()].join(keySeperator);
 };
 
+var makeKey2 = function(prefix, from, to) {
+  // return prefix;
+  return [prefix, from.valueOf()].join(keySeperator);
+}
+
 var durationFromKey = function(key, unit) {
-  var k = key.split('-');
+  var k = key.split(keySeperator);
   var m1 = moment(parseInt(k[1]));
   var m2 = moment(parseInt(k[2]));
   // console.log('%s - %s', m1.format('YYYY-MM-DD hh:mm:ss'), m2.format('YYYY-MM-DD hh:mm:ss'))
@@ -42,7 +49,7 @@ var durationFromKey = function(key, unit) {
 };
 
 var statisticName = function(key) {
-  return key.split('-')[0];
+  return key.split(keySeperator)[0];
 };
 
 function makeDuration(configItem) {
@@ -55,7 +62,7 @@ var printDB = function(db, next) {
 
     console.log('%s, %d', stats.name, stats.batch.length);
     stats.batch.forEach(function(data) {
-      printKey(data.key);
+      // printKey(data.key);
     });
 
   },
@@ -71,7 +78,10 @@ var printKey = function(key) {
 
 exports.initIntervals = initIntervals;
 exports.datesInKey = datesInKey;
+
 exports.makeKeyFromDates = makeKeyFromDates;
+exports.makeKey2 = makeKey2;
+
 exports.durationFromKey = durationFromKey;
 exports.statisticName = statisticName;
 exports.diffInDates = diffInDates;

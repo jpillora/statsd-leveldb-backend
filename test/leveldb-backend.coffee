@@ -25,7 +25,7 @@ before (done) ->
 
 after (done) ->
   dummyData.db.close()
-  require('child_process').exec('rm -rf db')
+  # require('child_process').exec('rm -rf db')
   done()
 
 describe 'Config Check', ->
@@ -130,15 +130,15 @@ describe 'Compression', ->
     compressionCount =  conf.checkInterval.asSeconds() /
             conf.boundaries[1].interval.asSeconds()
     dataToAdd = conf.checkInterval.asSeconds()
-    dummyData.add initialPoints, flushInterval
+    # dummyData.add initialPoints, flushInterval
     done()
 
   it 'should test traverse by jump', (done) ->
-    this.timeout 3100
+    this.timeout 8100
     jumpTraverse {db: dummyData.db, config: conf, shouldTimeout: false}
     setTimeout ( ->
       done()
-      ), 3000
+      ), 8000
 
   # it 'should add data and compress db', (done) ->
   #   this.timeout initialPoints * 10000
