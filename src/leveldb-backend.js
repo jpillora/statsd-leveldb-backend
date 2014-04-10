@@ -7,7 +7,7 @@ var util = require('./util');
 //==================
 // leveldb interface
 //==================
-var db = levelup('./db')
+var db = levelup('./db');
 var keysCache = {};
 
 //==================
@@ -20,12 +20,23 @@ var last, config;
 //======================
 var exitHandler = function() {
   if (_.isEmpty(keysCache)) return process.exit();
-  db.put('0', JSON.stringify(keysCache), function(err){
-    if (!err) {
-      console.log('Saved keys');
+
+  db.get('0', function(err, data) {
+    var keys = {};
+    if (data) {
+      keys = JSON.parse(data);
     }
-    process.exit();
+
+    _.merge(keys, keysCache);
+
+    db.put('0', JSON.stringify(keys), function(err){
+      if (!err) {
+        console.log('Saved keys');
+      }
+      process.exit();
+    });
   });
+
 };
 process.on('exit', exitHandler);
 process.on('SIGINT', exitHandler);
@@ -72,7 +83,7 @@ var add = function(from, to, metrics) {
     var k = [key, from.valueOf(), to.valueOf()].join('-');
     keysCache[key] = true;
 
-    batch.push({type: 'put', key:k, value:value})
+    batch.push({type: 'put', key:k, value:value});
 
     var diff = to.diff(from, 'seconds');
     console.log('%s = %s [%d secs]...', k, value, diff);
@@ -80,7 +91,7 @@ var add = function(from, to, metrics) {
 
   db.batch(batch, function(err) {
     if (err) console.log(err);
-  })
+  });
 
   // var prop = _.findKey(metrics.gauges, function(value){
   //   return value !== 0;

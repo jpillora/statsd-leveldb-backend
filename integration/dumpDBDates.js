@@ -6,13 +6,23 @@ var traverse = require('../src/jumpTraverse');
 
 var db = level('db');
 
-// db.createReadStream({start: 'switch1.cpu', limit: 10})
-//   .on('data', function(data) {
-//     util.printKey(data.key);
-//   })
-//   .on('end', function() {
-//   });
+var key = 'switch1.cpu';
 
-util.printDB(db, function() {
-  console.log('End');
-});
+var batch = [];
+
+db.createReadStream({start: key+'\xff', end:key, limit:30, reverse:true})
+  .on('data', function(data) {
+    util.printKey(data.key);
+    batch.push({type: 'del', key: data.key, value: data.value});
+  })
+  .on('end', function() {
+
+    console.log('Compressed');
+    var newBatch = traverse.compress(batch, 10);
+    util.printKey(newBatch[0].key);
+
+  });
+
+// util.printDB(db, function() {
+//   console.log('End');
+// });

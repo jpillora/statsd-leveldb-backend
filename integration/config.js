@@ -11,7 +11,7 @@
     },
     {
       "boundary" : "1 weeks",
-      "interval" : "5 minutes"
+      "interval" : "1 minutes"
     }
   ]
 }

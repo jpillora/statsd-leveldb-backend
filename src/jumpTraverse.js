@@ -3,9 +3,8 @@ var moment = require('moment');
 
 var util = require('./util');
 var query = require('./query');
-var boundary = require('./boundary');
 
-var Worker = require('webworker-threads').Worker;
+var fs = require('fs');
 
 function skipBndry(config) {
   return config.boundaries[0].boundary.asSeconds();
@@ -27,27 +26,18 @@ module.exports = ds = function(opts, done) {
   domain.skipBndry = skipBndry(config);
   domain.pruneBndry = pruneBndry(config);
   domain.range = config.checkInterval.asSeconds();
-  domain.startBndry = 1;
 
-  var bigBatch = [];
   var index = 1;
 
-  eachPrefix(db, config, function(prefix) {
-
-    onmessage = function(event) {
-      self.close();
-    };
-
+  eachPrefix(db, function(prefix) {
     var batch = [];
     var bndry = config.boundaries[index - 1];
     var flushInterval = bndry.interval.asSeconds();
     console.time('Scan:' + prefix);
 
-    db.createReadStream({end:prefix, limit:domain.range, reverse: true})
+    db.createReadStream({start:prefix+'\xff', end:prefix, limit:domain.range, reverse: true})
       .on('data', function(data) {
         var duration = util.durationFromKey(data.key, 'seconds');
-        // Limit flooding of domain.batch
-        // if (duration === flushInterval && batch.length < domain.range) {
         if (duration === flushInterval) {
           batch.push({type: 'del', key: data.key, value: data.value});
         }
@@ -55,7 +45,7 @@ module.exports = ds = function(opts, done) {
       .on('end', function() {
         console.timeEnd('Scan:' + prefix);
         if (batch.length < domain.range) {
-          console.log('For %s not enough samples: %d', prefix, batch.length);
+          // console.log('For %s not enough samples: %d', prefix, batch.length);
           batch = [];
           return;
         }
@@ -63,15 +53,14 @@ module.exports = ds = function(opts, done) {
         console.time('Compress:' + prefix);
         var timeframe = bndry.interval.asSeconds();
         var newBatch = compress(batch, timeframe);
-        //Batch: Delete and Put
         db.batch(_.union(newBatch, batch), function(err) {
           if (err) return console.log(err);
-          // console.timeEnd('Compress:' + prefix);
-          // console.log('Compressed %d records.', batch.length);
+          console.timeEnd('Compress:' + prefix);
+          console.log('Compressed %d records.', batch.length);
           batch = [];
         });
-
       });
+
   });
 
   //Timeout
@@ -85,8 +74,24 @@ var compress = function(batch, timeframe) {
 
   var len = batch.length;
 
-  var d = util.datesInKey(batch[len - 1].key);
-  var newKey = util.makeKeyFromDates(d.prefix, d.from, moment(d.from).add(timeframe, 'seconds'));
+  var d0 = util.datesInKey(batch[len - 1].key);
+  var d1 = util.datesInKey(batch[0].key);
+
+  var estimate = moment(d0.from).add(timeframe, 'seconds');
+
+  console.log(moment(estimate).format('YYYY-MM-DD hh:mm:ss'));
+
+  var j = 0;
+  while (j < batch.length) {
+    var d = util.datesInKey(batch[j].key);
+    var diff = d.from.diff(estimate, 'seconds');
+    if (diff == timeframe) {
+    }
+    j = j + 1;
+  }
+
+  // var newKey = util.makeKeyFromDates(d0.prefix, d0.from, moment(d0.from).add(timeframe, 'seconds'));
+  var newKey = util.makeKeyFromDates(d0.prefix, d0.from, d1.to);
 
   var newValue = JSON.stringify(query.average(batch));
   newBatch.push({type: 'put', key: newKey, value: newValue});
@@ -94,7 +99,7 @@ var compress = function(batch, timeframe) {
   return newBatch;
 };
 
-var eachPrefix = function(db, config, onEach) {
+var eachPrefix = function(db, onEach) {
   var prefixes = {};
   db.createValueStream({start: '0', limit:1})
     .on('data', function(value){
@@ -102,76 +107,11 @@ var eachPrefix = function(db, config, onEach) {
     })
     .on('end', function(){
 
-      var keys = []
-      for (k in prefixes) {
-        keys.push(k);
-      }
-
-      var i = 0
-      while (i < keys.length) {
-        var prefix = keys[i];
-
-        var each_ = function(key){
-          onmessage = function(event) {
-            console.log('finished worker');
-            self.close();
-          };
-
-          var batch = [];
-          var index = 1;
-          var bndry = config.boundaries[index - 1];
-          var flushInterval = bndry.interval.asSeconds();
-          var range = config.checkInterval.asSeconds();
-
-          console.time(key);
-          db.createReadStream({end: key, limit:range, reverse:true})
-            .on('data', function(data){
-              var duration = util.durationFromKey(data.key, 'seconds');
-              if (duration === flushInterval) {
-                batch.push({type: 'del', key: data.key, value: data.value});
-              }
-            })
-            .on('end', function(){
-              console.timeEnd(key);
-              if (batch.length < range) {
-                console.log('For %s not enough samples: %d', prefix, batch.length);
-                batch = [];
-                return;
-              }
-
-              // console.time('Compress:' + prefix);
-              // var timeframe = bndry.interval.asSeconds();
-              // var newBatch = compress(batch, timeframe);
-              // //Batch: Delete and Put
-              // db.batch(_.union(newBatch, batch), function(err) {
-              //   if (err) return console.log(err);
-              //   console.timeEnd('Compress:' + prefix);
-              //   console.log('Compressed %d records.', batch.length);
-              //   batch = [];
-              // });
-
-            });
-        };
-
-        // console.log('Spawing worker for ' + prefix)
-        var worker = new Worker(each_(prefix));
-        worker.postMessage('done');
-        i = i + 1;
-      }
-
-      // _.forIn(prefixes, function(value, prefix) {
-      //   onEach(prefix);
-      // });
+      _.forIn(prefixes, function(value, prefix) {
+        onEach(prefix);
+      });
 
     });
-};
-
-var eachBoundary = function(boundaries, startFrom, onEach) {
-  _.forEach(boundaries, function(boundary, index) {
-    if (index === startFrom) {
-      onEach(boundary, index);
-    }
-  });
 };
 
 var traverse = function(db, start, end) {
@@ -187,3 +127,5 @@ var traverse = function(db, start, end) {
       console.log('That was for %s', statsname);
     });
 };
+
+module.exports.compress = compress;
